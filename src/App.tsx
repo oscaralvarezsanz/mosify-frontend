@@ -3,7 +3,7 @@ import confetti from 'canvas-confetti';
 import { 
   Plus, Users, Layers, Award, CheckCircle2, 
   Activity, X, Sparkles, Filter, RefreshCw, AlertCircle, Info,
-  Flame, TrendingUp, Calendar, Trash2, Folder, FolderPlus, LogOut
+  Flame, TrendingUp, Calendar, Trash2, Folder, FolderPlus, LogOut, Edit
 } from 'lucide-react';
 
 // API Configuration
@@ -288,6 +288,9 @@ export default function App() {
   const [showAddTaskModal, setShowAddTaskModal] = useState<boolean>(false);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState<boolean>(false);
   const [showAddUserModal, setShowAddUserModal] = useState<boolean>(false);
+  const [showEditAliasModal, setShowEditAliasModal] = useState<boolean>(false);
+  const [editAliasUserId, setEditAliasUserId] = useState<string>('');
+  const [editAliasValue, setEditAliasValue] = useState<string>('');
 
   // New Entity Form Fields
   const [newUserName, setNewUserName] = useState<string>('');
@@ -851,6 +854,14 @@ export default function App() {
       if (!res.ok) throw new Error('No se pudo crear el tablero');
       
       const createdBoard: Board = await res.json();
+
+      // Automáticamente añadir al usuario creador al tablero sin alias
+      if (currentUser) {
+        await authFetch(`${API_BASE_URL}/boards/${createdBoard.id}/users/${currentUser.id}`, {
+          method: 'POST'
+        });
+      }
+
       setBoards((prev) => [...prev, createdBoard]);
       setActiveBoardId(createdBoard.id);
       setNewBoardName('');
@@ -863,6 +874,28 @@ export default function App() {
       setCategories([]);
       setTasks([]);
       setTransactions([]);
+    } catch (err: any) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  const handleUpdateAlias = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeBoardId || !editAliasUserId) return;
+
+    try {
+      const url = `${API_BASE_URL}/boards/${activeBoardId}/users/${editAliasUserId}?alias=${encodeURIComponent(editAliasValue)}`;
+      const res = await authFetch(url, {
+        method: 'POST'
+      });
+
+      if (!res.ok) throw new Error('No se pudo actualizar el alias');
+
+      showToast('Alias actualizado con éxito', 'success');
+      setShowEditAliasModal(false);
+      setEditAliasUserId('');
+      setEditAliasValue('');
+      refreshData();
     } catch (err: any) {
       showToast(err.message, 'error');
     }
@@ -1320,16 +1353,30 @@ export default function App() {
                   <span className="truncate">{u.alias || u.name}</span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-black/30 border border-white/5 text-zinc-300 ml-2">{u.pointsBalance} pts</span>
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveUserFromBoard(u.id);
-                  }}
-                  className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer"
-                  title="Quitar del tablero"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditAliasUserId(u.id);
+                      setEditAliasValue(u.alias || '');
+                      setShowEditAliasModal(true);
+                    }}
+                    className="p-1 rounded-md text-zinc-500 hover:text-indigo-400 hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Editar alias"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveUserFromBoard(u.id);
+                    }}
+                    className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer"
+                    title="Quitar del tablero"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -2050,6 +2097,45 @@ export default function App() {
                 className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all cursor-pointer"
               >
                 Crear Tablero
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT ALIAS */}
+      {showEditAliasModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-3xl glass p-6 border border-white/10 relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => {
+                setShowEditAliasModal(false);
+                setEditAliasUserId('');
+                setEditAliasValue('');
+              }}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-1.5">
+              <Edit className="w-5 h-5 text-indigo-400" /> Editar Alias en este Tablero
+            </h3>
+            <form onSubmit={handleUpdateAlias} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Alias (Dejar vacío para usar nombre real)</label>
+                <input 
+                  type="text" 
+                  value={editAliasValue}
+                  onChange={(e) => setEditAliasValue(e.target.value)}
+                  placeholder="Ej: Papá, Mamá, Boss"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none text-white text-sm"
+                />
+              </div>
+              <button 
+                type="submit"
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all cursor-pointer"
+              >
+                Guardar Alias
               </button>
             </form>
           </div>
