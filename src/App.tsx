@@ -526,7 +526,8 @@ export default function App() {
     setLoading(true);
     try {
       // Fetch boards
-      const boardsRes = await authFetch(`${API_BASE_URL}/boards`);
+      if (!currentUser) return;
+      const boardsRes = await authFetch(`${API_BASE_URL}/users/${currentUser.id}/boards`);
       if (!boardsRes.ok) throw new Error('Error al cargar tableros');
       const boardsData: Board[] = await boardsRes.json();
       setBoards(boardsData);
