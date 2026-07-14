@@ -4,6 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/mosify-frontend/',
   plugins: [
     react(),
     tailwindcss(),
