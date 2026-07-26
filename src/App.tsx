@@ -1098,12 +1098,23 @@ export default function App() {
     return false;
   };
 
-  // Filters
-  const filteredTasks = tasks.filter(t => {
-    const matchesCategory = categoryFilter === 'all' || t.categoryId === categoryFilter;
-    const matchesType = typeFilter === 'all' || t.type === typeFilter;
-    return matchesCategory && matchesType && t.active;
-  });
+  // Filters and Sorting
+  const filteredTasks = tasks
+    .filter(t => {
+      const matchesCategory = categoryFilter === 'all' || t.categoryId === categoryFilter;
+      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+      return matchesCategory && matchesType && t.active;
+    })
+    .sort((a, b) => {
+      const aIsEarn = a.pointsValue >= 0;
+      const bIsEarn = b.pointsValue >= 0;
+
+      if (aIsEarn && !bIsEarn) return -1;
+      if (!aIsEarn && bIsEarn) return 1;
+
+      // Alphabetical sort within each group
+      return a.title.localeCompare(b.title, undefined, { sensitivity: 'base' });
+    });
 
   // Sorting users for Leaderboard
   const sortedUsers = [...users].sort((a, b) => b.pointsBalance - a.pointsBalance);
