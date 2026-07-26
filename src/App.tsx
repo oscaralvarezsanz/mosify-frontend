@@ -310,6 +310,50 @@ export default function App() {
   const [inlineCategoryName, setInlineCategoryName] = useState<string>('');
   const [inlineCategoryDesc, setInlineCategoryDesc] = useState<string>('');
 
+  // Attempt auto-login using the browser's Credential Management API
+  const attemptAutoLogin = async () => {
+    if (!navigator.credentials) {
+      setLoading(false);
+      return;
+    }
+    const loggedOut = localStorage.getItem('loggedOut');
+    if (loggedOut === 'true') {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const credential = await navigator.credentials.get({ password: true });
+      if (credential && 'password' in credential) {
+        const username = credential.id;
+        const password = (credential as any).password;
+
+        const res = await fetch(`${API_BASE_URL}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          localStorage.setItem('token', data.accessToken);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.removeItem('loggedOut');
+          setAccessToken(data.accessToken);
+          setCurrentUser(data.user);
+          setIsLoggedIn(true);
+          showToast(`¡Sesión recuperada para ${data.user.name}!`, 'success');
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Auto-login was cancelled or failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Custom fetch wrapper that appends the Authorization header
   const authFetch = async (url: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('token') || accessToken;
@@ -333,13 +377,14 @@ export default function App() {
 
     const res = await fetch(url, finalOptions);
 
-    if (res.status === 401) {
+    if (res.status === 401 || res.status === 403) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setIsLoggedIn(false);
       setAccessToken('');
       setCurrentUser(null);
       showToast('Sesión expirada o no autorizada. Por favor inicia sesión de nuevo.', 'error');
+      attemptAutoLogin();
     }
 
     return res;
@@ -366,6 +411,7 @@ export default function App() {
       const data = await res.json();
       localStorage.setItem('token', data.accessToken);
       localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.removeItem('loggedOut');
       
       setAccessToken(data.accessToken);
       setCurrentUser(data.user);
@@ -374,6 +420,17 @@ export default function App() {
       setLoginUsername('');
       setLoginPassword('');
       showToast(`¡Bienvenido, ${data.user.name}!`, 'success');
+
+      // Save credentials in browser password manager
+      if (window.PasswordCredential) {
+        const cred = new PasswordCredential({
+          id: loginUsername,
+          password: loginPassword
+        });
+        navigator.credentials.store(cred).catch(err => {
+          console.warn('Error saving credentials to browser manager:', err);
+        });
+      }
     } catch (err: any) {
       showToast(err.message, 'error');
       setLoading(false);
@@ -420,6 +477,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.setItem('loggedOut', 'true');
     setIsLoggedIn(false);
     setAccessToken('');
     setCurrentUser(null);
@@ -570,7 +628,7 @@ export default function App() {
       setCurrentUser(JSON.parse(storedUser));
       setIsLoggedIn(true);
     } else {
-      setLoading(false);
+      attemptAutoLogin();
     }
   }, []);
 
