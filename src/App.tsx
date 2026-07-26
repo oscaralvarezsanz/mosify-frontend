@@ -324,7 +324,7 @@ export default function App() {
 
     try {
       setLoading(true);
-      const credential = await navigator.credentials.get({ password: true });
+      const credential = await navigator.credentials.get({ password: true } as any);
       if (credential && 'password' in credential) {
         const username = credential.id;
         const password = (credential as any).password;
@@ -422,8 +422,8 @@ export default function App() {
       showToast(`¡Bienvenido, ${data.user.name}!`, 'success');
 
       // Save credentials in browser password manager
-      if (window.PasswordCredential) {
-        const cred = new PasswordCredential({
+      if ('PasswordCredential' in window) {
+        const cred = new (window as any).PasswordCredential({
           id: loginUsername,
           password: loginPassword
         });
