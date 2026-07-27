@@ -899,6 +899,29 @@ export default function App() {
     );
   };
 
+  const handleUndoTransaction = (transactionId: string) => {
+    askConfirmation(
+      '¿Deshacer Transacción?',
+      '¿Estás seguro de que deseas deshacer esta transacción? Se revertirá el efecto sobre los puntos.',
+      async () => {
+        try {
+          const res = await authFetch(`${API_BASE_URL}/transactions/${transactionId}`, {
+            method: 'DELETE'
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.message || 'No se pudo deshacer la transacción');
+          }
+          showToast('Transacción deshecha con éxito', 'success');
+          refreshData();
+        } catch (err: any) {
+          showToast(err.message, 'error');
+        }
+      },
+      true
+    );
+  };
+
 
   // Board Handlers
   const handleCreateBoard = async (e: React.FormEvent) => {
@@ -1795,12 +1818,23 @@ export default function App() {
                     {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
-                <div className={`flex-shrink-0 px-2 py-1 rounded font-extrabold border ${
-                  tx.pointsAffected < 0 
-                    ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                    : 'bg-teal-500/10 border-teal-500/20 text-teal-400'
-                }`}>
-                  {tx.pointsAffected < 0 ? '' : '+'}{tx.pointsAffected} pts
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className={`px-2 py-1 rounded font-extrabold border ${
+                    tx.pointsAffected < 0 
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                      : 'bg-teal-500/10 border-teal-500/20 text-teal-400'
+                  }`}>
+                    {tx.pointsAffected < 0 ? '' : '+'}{tx.pointsAffected} pts
+                  </div>
+                  {currentUser && tx.userId && currentUser.id && tx.userId.toLowerCase() === currentUser.id.toLowerCase() && (
+                    <button
+                      onClick={() => handleUndoTransaction(tx.id)}
+                      className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 hover:border-red-500/25 text-red-400/80 hover:text-red-400 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+                      title="Deshacer transacción"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
