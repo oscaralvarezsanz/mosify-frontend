@@ -39,6 +39,7 @@ interface Task {
   frequency?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | null;
   pointsValue: number;
   active: boolean;
+  assignedUserId?: string | null;
 }
 
 interface Transaction {
@@ -307,6 +308,7 @@ export default function App() {
   const [newTaskFrequency, setNewTaskFrequency] = useState<'DAILY' | 'WEEKLY' | 'MONTHLY' | ''>('');
   const [newTaskPoints, setNewTaskPoints] = useState<number | string>(50);
   const [newTaskActionType, setNewTaskActionType] = useState<'EARN' | 'SPEND'>('EARN');
+  const [newTaskAssignedUserId, setNewTaskAssignedUserId] = useState<string>('');
 
   // Inline category creation states
   const [isCreatingCategoryInline, setIsCreatingCategoryInline] = useState<boolean>(false);
@@ -777,7 +779,8 @@ export default function App() {
           type: newTaskType,
           frequency: (newTaskType === 'RECURRENT' && newTaskFrequency !== '') ? newTaskFrequency : null,
           pointsValue: finalPoints,
-          active: editingTask.active
+          active: editingTask.active,
+          assignedUserId: newTaskAssignedUserId || null
         };
 
         const res = await authFetch(`${API_BASE_URL}/tasks/${editingTask.id}`, {
@@ -797,6 +800,7 @@ export default function App() {
         setNewTaskFrequency('');
         setNewTaskPoints(50);
         setNewTaskActionType('EARN');
+        setNewTaskAssignedUserId('');
         setIsCreatingCategoryInline(false);
         setInlineCategoryName('');
         setInlineCategoryDesc('');
@@ -861,7 +865,8 @@ export default function App() {
         type: newTaskType,
         frequency: (newTaskType === 'RECURRENT' && newTaskFrequency !== '') ? newTaskFrequency : null,
         pointsValue: finalPoints,
-        active: true
+        active: true,
+        assignedUserId: newTaskAssignedUserId || null
       };
 
       const res = await authFetch(`${API_BASE_URL}/tasks`, {
@@ -881,6 +886,7 @@ export default function App() {
       setNewTaskFrequency('');
       setNewTaskPoints(50);
       setNewTaskActionType('EARN');
+      setNewTaskAssignedUserId('');
       setIsCreatingCategoryInline(false);
       setInlineCategoryName('');
       setInlineCategoryDesc('');
@@ -987,6 +993,7 @@ export default function App() {
     setNewTaskFrequency(task.frequency || '');
     setNewTaskPoints(Math.abs(task.pointsValue));
     setNewTaskActionType(task.pointsValue < 0 ? 'SPEND' : 'EARN');
+    setNewTaskAssignedUserId(task.assignedUserId || '');
     setIsCreatingCategoryInline(false);
     setShowAddTaskModal(true);
   };
@@ -1730,6 +1737,7 @@ export default function App() {
               const isSpend = task.pointsValue < 0;
               const userBalance = activeUser?.pointsBalance || 0;
               const hasInsufficientBalance = isSpend && (userBalance + task.pointsValue < 0);
+              const isAssignedToOther = task.assignedUserId ? task.assignedUserId !== activeUserId : false;
 
               return (
                 <div key={task.id} className={`glass-card rounded-2xl p-5 flex flex-col justify-between relative overflow-hidden group transition-all duration-300 ${
@@ -1782,6 +1790,15 @@ export default function App() {
                               <Flame className="w-3.5 h-3.5 text-orange-400" /> Único uso
                             </span>
                           )}
+                          {task.assignedUserId && (
+                            <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded border font-semibold ${
+                              completed 
+                                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-300/60'
+                                : 'bg-indigo-500/20 border-indigo-500/35 text-indigo-300'
+                            }`}>
+                              <Users className="w-3.5 h-3.5 text-indigo-400" /> Para: {getUserName(task.assignedUserId)}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           <button 
@@ -1829,8 +1846,8 @@ export default function App() {
 
                     {/* Complete/Redeem Task Button */}
                     <button 
-                      onClick={() => !completed && !hasInsufficientBalance && handleExecuteTask(task.id)}
-                      disabled={completed || hasInsufficientBalance}
+                      onClick={() => !completed && !hasInsufficientBalance && !isAssignedToOther && handleExecuteTask(task.id)}
+                      disabled={completed || hasInsufficientBalance || isAssignedToOther}
                       className={`px-4 py-2.5 rounded-xl border text-sm shadow-sm transition-all duration-300 flex items-center gap-1.5
                         ${completed 
                           ? isSpend
@@ -1838,9 +1855,11 @@ export default function App() {
                             : 'bg-teal-950/40 border-teal-500/40 text-teal-400 cursor-default font-extrabold'
                           : hasInsufficientBalance
                             ? 'bg-red-950/20 border-red-500/20 text-red-400/60 cursor-not-allowed font-bold'
-                            : isSpend
-                              ? 'bg-white/5 border-white/10 hover:bg-gradient-to-r hover:from-orange-500 hover:to-red-500 hover:border-transparent text-zinc-300 hover:text-black font-bold cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                              : 'bg-white/5 border-white/10 hover:bg-gradient-to-r hover:from-teal-500 hover:to-indigo-500 hover:border-transparent text-zinc-300 hover:text-black font-bold cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                            : isAssignedToOther
+                              ? 'bg-zinc-950/30 border-zinc-800 text-zinc-500/40 cursor-not-allowed font-medium'
+                              : isSpend
+                                ? 'bg-white/5 border-white/10 hover:bg-gradient-to-r hover:from-orange-500 hover:to-red-500 hover:border-transparent text-zinc-300 hover:text-black font-bold cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                                : 'bg-white/5 border-white/10 hover:bg-gradient-to-r hover:from-teal-500 hover:to-indigo-500 hover:border-transparent text-zinc-300 hover:text-black font-bold cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                         }
                       `}
                     >
@@ -1851,9 +1870,11 @@ export default function App() {
                           : 'Completado' 
                         : hasInsufficientBalance 
                           ? 'Saldo Insuficiente' 
-                          : isSpend 
-                            ? 'Canjear' 
-                            : 'Completar'
+                          : isAssignedToOther
+                            ? `Para: ${getUserName(task.assignedUserId!)}`
+                            : isSpend 
+                              ? 'Canjear' 
+                              : 'Completar'
                       }
                     </button>
                   </div>
@@ -2224,6 +2245,18 @@ export default function App() {
                     className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none text-white text-sm"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">Asignar a un usuario (Opcional)</label>
+                <CustomSelect
+                  value={newTaskAssignedUserId}
+                  onChange={setNewTaskAssignedUserId}
+                  options={[
+                    { value: '', label: 'Cualquier miembro (Sin asignar)' },
+                    ...users.map(u => ({ value: u.id, label: u.alias || u.name }))
+                  ]}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
