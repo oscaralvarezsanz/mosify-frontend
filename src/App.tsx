@@ -3,7 +3,8 @@ import confetti from 'canvas-confetti';
 import { 
   Plus, Users, Layers, Award, CheckCircle2, 
   Activity, X, Sparkles, Filter, RefreshCw, AlertCircle, Info,
-  Flame, TrendingUp, Calendar, Trash2, Folder, FolderPlus, LogOut, Edit
+  Flame, TrendingUp, Calendar, Trash2, Folder, FolderPlus, LogOut, Edit,
+  RotateCcw
 } from 'lucide-react';
 
 // API Configuration
@@ -1829,10 +1830,10 @@ export default function App() {
                   {currentUser && tx.userId && currentUser.id && tx.userId.toLowerCase() === currentUser.id.toLowerCase() && (
                     <button
                       onClick={() => handleUndoTransaction(tx.id)}
-                      className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 hover:border-red-500/25 text-red-400/80 hover:text-red-400 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
+                      className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
                       title="Deshacer transacción"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
