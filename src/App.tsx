@@ -1065,6 +1065,19 @@ export default function App() {
   const getTaskTitle = (id?: string | null) => tasks.find(t => t.id === id)?.title || 'Tarea especial';
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || 'Sin Categoría';
 
+  const formatTransactionDate = (createdAt: string) => {
+    const txDate = new Date(createdAt);
+    const today = new Date();
+    const isToday = txDate.getDate() === today.getDate() &&
+                    txDate.getMonth() === today.getMonth() &&
+                    txDate.getFullYear() === today.getFullYear();
+    if (isToday) {
+      return txDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else {
+      return txDate.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+  };
+
   const isTaskCompleted = (task: Task): boolean => {
     if (!activeUserId) return false;
 
@@ -1816,7 +1829,7 @@ export default function App() {
                   </p>
                   <p className="text-zinc-500 truncate">{getTaskTitle(tx.taskId)}</p>
                   <p className="text-[10px] text-zinc-600 mt-0.5">
-                    {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatTransactionDate(tx.createdAt)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
