@@ -1826,10 +1826,10 @@ export default function App() {
                   }`}>
                     {tx.pointsAffected < 0 ? '' : '+'}{tx.pointsAffected} pts
                   </div>
-                  {currentUser && tx.userId === currentUser.id && (
+                  {currentUser && tx.userId && currentUser.id && tx.userId.toLowerCase() === currentUser.id.toLowerCase() && (
                     <button
                       onClick={() => handleUndoTransaction(tx.id)}
-                      className="p-1.5 rounded-lg bg-zinc-900/60 hover:bg-red-500/15 border border-white/5 hover:border-red-500/20 text-zinc-500 hover:text-red-400 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                      className="p-1.5 rounded-lg bg-red-500/5 hover:bg-red-500/15 border border-red-500/10 hover:border-red-500/25 text-red-400/80 hover:text-red-400 transition-all hover:scale-105 active:scale-95 cursor-pointer flex items-center justify-center"
                       title="Deshacer transacción"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
