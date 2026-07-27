@@ -292,6 +292,8 @@ export default function App() {
   const [showEditAliasModal, setShowEditAliasModal] = useState<boolean>(false);
   const [editAliasUserId, setEditAliasUserId] = useState<string>('');
   const [editAliasValue, setEditAliasValue] = useState<string>('');
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // New Entity Form Fields
   const [newUserName, setNewUserName] = useState<string>('');
@@ -696,6 +698,32 @@ export default function App() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryName.trim()) return;
+
+    if (editingCategory) {
+      try {
+        const res = await authFetch(`${API_BASE_URL}/categories/${editingCategory.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ 
+            name: newCategoryName, 
+            description: newCategoryDesc 
+          })
+        });
+
+        if (!res.ok) throw new Error('No se pudo actualizar la categoría');
+
+        const updatedCat: Category = await res.json();
+        setCategories((prev) => prev.map(c => c.id === updatedCat.id ? updatedCat : c));
+        setNewCategoryName('');
+        setNewCategoryDesc('');
+        setEditingCategory(null);
+        setShowAddCategoryModal(false);
+        showToast(`Categoría "${updatedCat.name}" actualizada`, 'success');
+      } catch (err: any) {
+        showToast(err.message, 'error');
+      }
+      return;
+    }
+
     if (!activeUserId) {
       showToast('Por favor, selecciona o crea un usuario activo primero.', 'error');
       return;
@@ -735,6 +763,50 @@ export default function App() {
 
     if (!newTaskTitle.trim()) {
       showToast('El título es requerido', 'error');
+      return;
+    }
+
+    if (editingTask) {
+      try {
+        const points = Number(newTaskPoints) || 50;
+        const finalPoints = newTaskActionType === 'SPEND' ? -Math.abs(points) : Math.abs(points);
+
+        const payload = {
+          title: newTaskTitle,
+          categoryId: newTaskCategoryId,
+          type: newTaskType,
+          frequency: (newTaskType === 'RECURRENT' && newTaskFrequency !== '') ? newTaskFrequency : null,
+          pointsValue: finalPoints,
+          active: editingTask.active
+        };
+
+        const res = await authFetch(`${API_BASE_URL}/tasks/${editingTask.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error('No se pudo actualizar la tarea');
+
+        const updatedTask: Task = await res.json();
+        setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+        
+        // Reset Form
+        setNewTaskTitle('');
+        setNewTaskCategoryId('');
+        setNewTaskType('SINGLE_USE');
+        setNewTaskFrequency('');
+        setNewTaskPoints(50);
+        setNewTaskActionType('EARN');
+        setIsCreatingCategoryInline(false);
+        setInlineCategoryName('');
+        setInlineCategoryDesc('');
+        setEditingTask(null);
+        setShowAddTaskModal(false);
+
+        showToast(`Tarea "${updatedTask.title}" actualizada`, 'success');
+      } catch (err: any) {
+        showToast(err.message, 'error');
+      }
       return;
     }
 
@@ -898,6 +970,25 @@ export default function App() {
         }
       }
     );
+  };
+
+  const handleStartEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setNewCategoryName(category.name);
+    setNewCategoryDesc(category.description || '');
+    setShowAddCategoryModal(true);
+  };
+
+  const handleStartEditTask = (task: Task) => {
+    setEditingTask(task);
+    setNewTaskTitle(task.title);
+    setNewTaskCategoryId(task.categoryId);
+    setNewTaskType(task.type);
+    setNewTaskFrequency(task.frequency || '');
+    setNewTaskPoints(Math.abs(task.pointsValue));
+    setNewTaskActionType(task.pointsValue < 0 ? 'SPEND' : 'EARN');
+    setIsCreatingCategoryInline(false);
+    setShowAddTaskModal(true);
   };
 
   const handleUndoTransaction = (transactionId: string) => {
@@ -1692,13 +1783,22 @@ export default function App() {
                             </span>
                           )}
                         </div>
-                        <button 
-                          onClick={() => handleDeleteTask(task.id)}
-                          className="p-1 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer"
-                          title="Eliminar tarea"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => handleStartEditTask(task)}
+                            className="p-1 rounded-lg text-zinc-500 hover:text-indigo-400 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+                            title="Editar tarea"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="p-1 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+                            title="Eliminar tarea"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <h3 className={`text-lg font-bold tracking-wide transition-colors ${
@@ -1795,13 +1895,22 @@ export default function App() {
               >
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-semibold text-zinc-200">{c.name}</span>
-                  <button
-                    onClick={() => handleDeleteCategory(c.id)}
-                    className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer"
-                    title="Eliminar categoría"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleStartEditCategory(c)}
+                      className="p-1 rounded-md text-zinc-500 hover:text-indigo-400 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+                      title="Editar categoría"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(c.id)}
+                      className="p-1 rounded-md text-zinc-500 hover:text-red-400 hover:bg-white/5 transition-colors cursor-pointer flex items-center justify-center"
+                      title="Eliminar categoría"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
                 {c.description && <p className="text-xs text-zinc-500 truncate">{c.description}</p>}
               </div>
@@ -1941,13 +2050,18 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-sm rounded-3xl glass p-6 border border-white/10 relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <button 
-              onClick={() => setShowAddCategoryModal(false)}
+              onClick={() => {
+                setShowAddCategoryModal(false);
+                setEditingCategory(null);
+                setNewCategoryName('');
+                setNewCategoryDesc('');
+              }}
               className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-1.5">
-              <Layers className="w-5 h-5 text-indigo-400" /> Nueva Categoría
+              <Layers className="w-5 h-5 text-indigo-400" /> {editingCategory ? 'Editar Categoría' : 'Nueva Categoría'}
             </h3>
             <form onSubmit={handleCreateCategory} className="space-y-4">
               <div>
@@ -1987,13 +2101,25 @@ export default function App() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="w-full max-w-md rounded-3xl glass p-6 border border-white/10 relative shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <button 
-              onClick={() => setShowAddTaskModal(false)}
+              onClick={() => {
+                setShowAddTaskModal(false);
+                setEditingTask(null);
+                setNewTaskTitle('');
+                setNewTaskCategoryId('');
+                setNewTaskType('SINGLE_USE');
+                setNewTaskFrequency('');
+                setNewTaskPoints(50);
+                setNewTaskActionType('EARN');
+                setIsCreatingCategoryInline(false);
+                setInlineCategoryName('');
+                setInlineCategoryDesc('');
+              }}
               className="absolute top-4 right-4 text-zinc-400 hover:text-white cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-1.5">
-              <Award className="w-5 h-5 text-indigo-400" /> Crear Nueva Tarea
+              <Award className="w-5 h-5 text-indigo-400" /> {editingTask ? 'Editar Tarea' : 'Crear Nueva Tarea'}
             </h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
@@ -2137,7 +2263,7 @@ export default function App() {
                 type="submit"
                 className="w-full py-3 mt-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
               >
-                Crear Tarea
+                {editingTask ? 'Guardar Cambios' : 'Crear Tarea'}
               </button>
             </form>
           </div>
